@@ -18,6 +18,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36');
 
+      console.log(new Date().toLocaleString(), 'Beginning vaccine check');
       await page.goto('https://www.riteaid.com/pharmacy/covid-qualifier', { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#dateOfBirth', { timeout: 10000, visible: true });
 
@@ -52,6 +53,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
         await page.waitForSelector('.covid-scheduler__invalid');
       } catch(err) {
         // Error message not found - possible availability
+        console.log(new Date().toLocaleString(), 'Appointments found!');
         const screenshot = await page.screenshot({ encoding: 'base64' });
         await sgMail.send({
           attachments: [{
