@@ -1,0 +1,17 @@
+{
+  "name": "vaccine-finder",
+  "version": "1.0.0",
+  "description": "Find COVID-19 vaccine availability at Rite Aid",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jesse Lentz",
+  "license": "MIT",
+  "dependencies": {
+    "@sendgrid/mail": "^7.4.2",
+    "dotenv": "^8.2.0",
+    "puppeteer": "^7.1.0"
+  }
+}
