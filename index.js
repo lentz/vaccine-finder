@@ -66,7 +66,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
           from: 'Vaccine Notifier <fantasynotify@mailinator.com>',
           html: `https://www.riteaid.com/pharmacy/covid-qualifier<br /><br /><img src="cid:screenshot" />`,
           subject: `Rite Aid vaccine appointments may be available!`,
-          to: process.env.EMAILS,
+          to: process.env.EMAILS.split(','),
         });
         process.exit();
       }
