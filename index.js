@@ -12,7 +12,8 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     headless: false,
   });
 
-  while(true) {
+  let foundAppt = false;
+  while(!foundAppt) {
     let page;
     try {
       page = await browser.newPage();
@@ -47,7 +48,6 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       await findStoreBtn.click();
       await page.waitForSelector('.covid-store__result', { visible: true });
       const stores = (await page.$$('.covid-store__store__content')).slice(0, 4);
-      debugger
       for (const store of stores) {
         const storeName = await store.$eval('.covid-store__store__head span', (node) => node.innerText);
         console.log(new Date().toLocaleString(), 'Checking', storeName);
@@ -56,9 +56,10 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
         await page.waitForTimeout(2000);
         await page.click('#continue');
         try {
-          await page.waitForSelector('.covid-scheduler__invalid');
+          await page.waitForSelector('.covid-scheduler__invalid', { timeout: 10000 });
         } catch(err) {
           // Error message not found - possible availability
+          foundAppt = true;
           console.log(new Date().toLocaleString(), `Appointments found at ${storeName}!`);
           const screenshot = await page.screenshot({ encoding: 'base64' });
           await sgMail.send({
@@ -74,14 +75,14 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             subject: `Rite Aid vaccine appointments available at ${storeName}!`,
             to: process.env.EMAILS.split(','),
           });
-          process.exit();
+          break;
         }
       }
-
-      await page.waitForTimeout(30000);
     } catch(err) {
       console.error(err);
     }
-    await page.close();
+    if (!foundAppt) {
+      await page.close();
+    }
   }
 })().catch(console.error);
