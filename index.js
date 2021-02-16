@@ -47,14 +47,17 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       const findStoreBtn = await page.waitForSelector('#btn-find-store');
       await findStoreBtn.click();
       await page.waitForSelector('.covid-store__result', { visible: true });
-      const stores = (await page.$$('.covid-store__store__content')).slice(0, 4);
-      for (const store of stores) {
-        const storeName = await store.$eval('.covid-store__store__head span', (node) => node.innerText);
+      for (let i = 0; i < 4; i++) {
+        const selectStoreBtn = (await page.$$('a.covid-store__store__anchor--unselected'))[i];
+        const storeName = await selectStoreBtn.evaluate((node) => {
+          return node.parentElement.parentElement.querySelector('.covid-store__store__head span').innerText;
+        });
         console.log(new Date().toLocaleString(), 'Checking', storeName);
-        const selectStoreBtn = await store.$('a.covid-store__store__anchor--unselected');
+        await selectStoreBtn.focus();
         await selectStoreBtn.click();
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(3000);
         await page.click('#continue');
+        await page.waitForTimeout(3000);
         try {
           await page.waitForSelector('.covid-scheduler__invalid', { timeout: 10000 });
         } catch(err) {
