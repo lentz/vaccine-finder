@@ -23,7 +23,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       await page.goto('https://www.riteaid.com/pharmacy/covid-qualifier', { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#dateOfBirth', { timeout: 10000, visible: true });
 
-      await page.type('#dateOfBirth', '08/20/1948');
+      await page.type('#dateOfBirth', '02/25/1950');
       await page.click('#Occupation');
       await page.click('#noneoftheabove');
       await page.type('#city', 'Berwyn');
