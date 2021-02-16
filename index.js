@@ -59,7 +59,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
         await page.click('#continue');
         await page.waitForTimeout(3000);
         try {
-          await page.waitForSelector('.covid-scheduler__invalid', { timeout: 10000 });
+          await page.waitForSelector('.ra-icon-alert', { timeout: 10000 });
         } catch(err) {
           // Error message not found - possible availability
           foundAppt = true;
