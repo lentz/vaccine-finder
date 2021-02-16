@@ -69,7 +69,29 @@ async function checkRiteAid(page) {
   return false;
 }
 
-async function checkWeis() {
+async function checkWeis(page) {
+  console.log(new Date().toLocaleString(), 'Checking Weis');
+  await page.goto('https://c.ateb.com/8d8feb6dce7d4d598f753362d06d1e64/');
+  const content = await page.content();
+  if (!content.includes('Appointments Full')) {
+    console.log(new Date().toLocaleString(), `Appointments found at Weis!`);
+    const screenshot = await page.screenshot({ encoding: 'base64' });
+    await sgMail.send({
+      attachments: [{
+        filename: 'screenshot.png',
+        type: 'image/png',
+        content_id: 'screenshot',
+        content: screenshot,
+        disposition: 'inline',
+      }],
+      from: 'Vaccine Notifier <fantasynotify@mailinator.com>',
+      html: `https://c.ateb.com/8d8feb6dce7d4d598f753362d06d1e64/<br /><br /><img src="cid:screenshot" />`,
+      subject: `Vaccine appointments available at Weis!`,
+      to: process.env.EMAILS.split(','),
+    });
+    return true;
+  }
+
   return false;
 }
 
