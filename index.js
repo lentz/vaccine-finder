@@ -1,3 +1,6 @@
+const { interval, from, of } = require('rxjs');
+const { delay, filter, map, repeat, switchMap, take, tap } = require('rxjs/operators');
+const got = require('got');
 const sgMail = require('@sendgrid/mail');
 const puppeteer = require('puppeteer');
 
@@ -5,117 +8,72 @@ require('dotenv').config();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-async function checkRiteAid(page) {
-  await page.goto('https://www.riteaid.com/pharmacy/covid-qualifier', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#dateOfBirth', { timeout: 10000, visible: true });
+const stores = [
+  {
+    active: true,
+    number: 1144,
+    address: '500 Chesterbrook Blvd Ste 2, Chesterbrook, PA 19087',
+  },
+  {
+    active: true,
+    number: 11119,
+    address: '644 West Lancaster Ave., Wayne, PA 19087',
+  },
+  {
+    active: true,
+    number: 995,
+    address: '237 East Lancaster Avenue, Wayne, PA 19087',
+  },
+  {
+    active: true,
+    number: 11158,
+    address: '160 North Gulph Road Ste1088, King Of Prussia, PA 19406',
+  },
+];
 
-  await page.type('#dateOfBirth', '02/25/1950');
-  await page.click('#Occupation');
-  await page.click('#noneoftheabove');
-  await page.type('#city', 'Berwyn');
-  await page.click('#mediconditions');
-  await page.click('#noneoftheabove-medical');
-  await page.focus('#eligibility_state');
-  await page.type('#eligibility_state', 'Pennsylvania');
-  await page.type('#zip', '19312');
-  await page.click('#E_METHOD1');
-
-  await page.click('#continue');
-  await page.waitForSelector('.error-modal', { visible: true });
-  const continueBtn = await page.waitForSelector('#learnmorebttn', { visible: true });
-  await page.waitForTimeout(2000);
-  await Promise.all([
-    continueBtn.click(),
-    page.waitForNavigation(),
-  ]);
-
-  // Select store page
-  const findStoreBtn = await page.waitForSelector('#btn-find-store');
-  await findStoreBtn.click();
-  await page.waitForSelector('.covid-store__result', { visible: true });
-  for (let i = 0; i < 4; i++) {
-    const selectStoreBtn = (await page.$$('a.covid-store__store__anchor--unselected'))[i];
-    const storeName = await selectStoreBtn.evaluate((node) => {
-      return node.parentElement.parentElement.querySelector('.covid-store__store__head span').innerText;
-    });
-    console.log(new Date().toLocaleString(), 'Checking', storeName);
-    await selectStoreBtn.focus();
-    await selectStoreBtn.click();
-    await page.waitForTimeout(3000);
-    await page.click('#continue');
-    await page.waitForTimeout(3000);
+async function checkRiteAidV2() {
+  for (const store of stores) {
     try {
-      await page.waitForSelector('.ra-icon-alert', { timeout: 10000 });
-    } catch(err) {
-      console.log(new Date().toLocaleString(), `Appointments found at Rite Aid ${storeName}!`);
-      const screenshot = await page.screenshot({ encoding: 'base64' });
-      await sgMail.send({
-        attachments: [{
-          filename: 'screenshot.png',
-          type: 'image/png',
-          content_id: 'screenshot',
-          content: screenshot,
-          disposition: 'inline',
-        }],
-        from: 'Vaccine Notifier <fantasynotify@mailinator.com>',
-        html: `https://www.riteaid.com/pharmacy/covid-qualifier<br /><br />${storeName}<br /><br /><img src="cid:screenshot" />`,
-        subject: `Vaccine appointments available at Rite Aid ${storeName}!`,
-        to: process.env.EMAILS.split(','),
-      });
-      return true;
-    }
-  }
+      console.log(new Date().toLocaleString(), `Checking ${store.address}`);
+      const checkResp = await got(
+        'https://www.riteaid.com/services/ext/v2/vaccine/checkSlots',
+        {
+          headers: {
+            cookie: 'check=true;',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36',
+            referer: 'https://www.riteaid.com/pharmacy/apt-scheduler',
+          },
+          searchParams: { storeNumber: store.number },
+        },
+      ).json();
 
-  return false;
+      if (checkResp.Data.slots['1'] !== false) {
+        console.log(`Appointments found at Rite Aid ${store.address}`);
+        console.log(checkResp);
+      }
+    } catch(err) {
+      console.error(`Error checking ${store.number}: ${err.message}`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
 }
 
-async function checkWeis(page) {
-  console.log(new Date().toLocaleString(), 'Checking Weis');
-  await page.goto('https://c.ateb.com/8d8feb6dce7d4d598f753362d06d1e64/');
-  const content = await page.content();
-  if (!content.includes('Appointments Full')) {
-    console.log(new Date().toLocaleString(), `Appointments found at Weis!`);
-    const screenshot = await page.screenshot({ encoding: 'base64' });
-    await sgMail.send({
-      attachments: [{
-        filename: 'screenshot.png',
-        type: 'image/png',
-        content_id: 'screenshot',
-        content: screenshot,
-        disposition: 'inline',
-      }],
-      from: 'Vaccine Notifier <fantasynotify@mailinator.com>',
-      html: `https://c.ateb.com/8d8feb6dce7d4d598f753362d06d1e64/<br /><br /><img src="cid:screenshot" />`,
-      subject: `Vaccine appointments available at Weis!`,
-      to: process.env.EMAILS.split(','),
-    });
-    return true;
-  }
-
-  return false;
-}
-
-(async () => {
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox'],
-    defaultViewport: { width: 1100, height: 1500 },
-    headless: false,
-  });
-
-  let foundAppt = false;
-  while(!foundAppt) {
-    let page;
-    try {
-      page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36');
-
-      foundAppt = await checkWeis(page);
-      foundAppt = await checkRiteAid(page);
-    } catch(err) {
-      console.error(err);
-    }
-    if (!foundAppt) {
-      await page.close();
-    }
-  }
-})().catch(console.error);
+interval(5000).pipe(
+  take(stores.length),
+  map((val) => stores[val]),
+  filter((store) => store.active),
+  switchMap((store) => from(got(
+    'https://www.riteaid.com/services/ext/v2/vaccine/checkSlots',
+    {
+      headers: {
+        cookie: 'check=true;',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36',
+        referer: 'https://www.riteaid.com/pharmacy/apt-scheduler',
+      },
+      searchParams: { storeNumber: store.number },
+    },
+  ).json())),
+  repeat(),
+)
+.subscribe(console.log);

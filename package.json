@@ -12,6 +12,8 @@
   "dependencies": {
     "@sendgrid/mail": "^7.4.2",
     "dotenv": "^8.2.0",
-    "puppeteer": "^7.1.0"
+    "got": "^11.8.1",
+    "puppeteer": "^7.1.0",
+    "rxjs": "^6.6.3"
   }
 }
